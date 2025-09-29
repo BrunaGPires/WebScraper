@@ -1,7 +1,5 @@
 import requests
 from bs4 import BeautifulSoup
-import re
-import json
 
 key_words = [
     "London", "Europe", "EUIC", "UK", "United Kingdom", "England", "Lisbon", "Natural History Museum", "Excel Center", "Excel Centre"
@@ -32,32 +30,25 @@ def scraper_serebii():
         # Procura todos elementos com classe 'post'
         post_elements = soup.find_all(lambda tag: tag.has_attr('class') and 'post' in tag['class'])
 
-        # Inicializa variveis para o json
-        title = ""
-        full_link = ""
-        post_paragraph = []
-
         for i, post in enumerate(post_elements):
-            print(f"\n{'='*60}")
-            print(f"POST ELEMENT {i+1} - Classes: {post.get('class', [])}")
-            print(f"{'='*60}")
+            # Inicializa variveis
+            title = ""
+            full_link = ""
+            post_paragraph = []
 
             # Pega o h2 e p que estão em post
             h2s = post.find_all('h2', recursive=True)
             ps = post.find_all('p', recursive=True)
             for h2 in h2s:
                 title_text = h2.get_text(strip=True)
-                print(title_text)
                 title = title_text
                 # Pegar o link do post
                 a = h2.find("a")
                 if a and a.has_attr("href"):
                     link = a["href"]
                     full_link = f"https://www.serebii.net{link}"
-                    print(full_link)
             for p in ps:
                 p_text = p.get_text(strip=True)
-                print(p_text)
                 post_paragraph.append(p_text)
 
             news_data = {
@@ -75,9 +66,31 @@ def scraper_serebii():
         print(f"Erro: {e}")
         return None
 
+def filter(all_news, key_words):
+    filtered_posts = []
+
+    for posts in all_news:
+        text = ' '.join(posts['post_paragraph']).lower()
+        title = posts['title'].lower()
+
+        for word in key_words:
+            word_lower = word.lower()
+            if word_lower in title or word_lower in text:
+                filtered_posts.append(posts)
+                break
+
+    return filtered_posts
+
 if __name__ == "__main__":
-    html = scraper_serebii()
-    if html:
-        print("\nSucesso! HTML obtido do Serebii.")
+    all_news = scraper_serebii()
+    if all_news:        
+        filtered_news = filter(all_news, key_words)
+
+        print(f"Total de posts encontrados: {len(all_news)}")
+        print(f"Posts filtrados: {len(filtered_news)}")
+
+        for post in filtered_news:
+            print(f"\n→ {post['title']}")
+            print(f"  Link: {post['link']}")
     else:
         print("\nFalha ao obter HTML.")
