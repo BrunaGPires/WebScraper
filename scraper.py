@@ -1,19 +1,31 @@
 import requests
 import smtplib, ssl
+import os
+import time
+import urllib.parse
+from dotenv import load_dotenv
 from bs4 import BeautifulSoup
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
+load_dotenv()
+
 email_config = {
-    "sender_mail" : "",
-    "receiver_mail" : "",
-    "password": ""
+    "sender_mail" : os.getenv('SENDER_EMAIL'),
+    "receiver_mail" : os.getenv('RECEIVER_EMAIL'),
+    "password": os.getenv('EMAIL_PASSWORD')
+}
+
+telegram_token = {
+    "tbot_token" : os.getenv('TELEGRAM_TOKEN'),
+    "tele_id" : os.getenv('TELE_ID')
 }
 
 key_words = [
     "London", "Europe", "EUIC", "UK", "United Kingdom", "England", "Lisbon", "Natural History Museum", "Excel Center", "Excel Centre"
 ]
 
+# Site Scraper
 def scraper_serebii():
     serebii_url = "https://serebii.net/"
 
@@ -29,7 +41,7 @@ def scraper_serebii():
     try:
         print("Fazendo requisição...")
 
-        response = requests.get(serebii_url, headers=HEADERS, proxies=proxy_config)
+        response = requests.get(serebii_url, headers=HEADERS)
         response.raise_for_status()
 
         print(f"Status: {response.status_code}")
@@ -75,6 +87,7 @@ def scraper_serebii():
         print(f"Erro: {e}")
         return None
 
+# Filter based on key words
 def filter(all_news, key_words):
     filtered_posts = []
 
@@ -90,12 +103,15 @@ def filter(all_news, key_words):
 
     return filtered_posts
 
+# Send emails
 def mail_sender(all_news, filtered_news):
-
     #Config
     sender_mail = email_config['sender_mail']
     receiver_mail = email_config["receiver_mail"]
     password = email_config["password"]
+
+    port = 587  
+    context = ssl.create_default_context()
 
     body_text = []
     for post in filtered_news:
@@ -112,9 +128,6 @@ def mail_sender(all_news, filtered_news):
     msg["To"] = receiver_mail
     msg["Subject"] = subject
     msg.attach(MIMEText(body, "plain"))
-
-    port = 587  
-    context = ssl.create_default_context()
 
     try:
         print("Connecting to SMTP server...")
@@ -133,8 +146,28 @@ def mail_sender(all_news, filtered_news):
 
     return
 
+# Send Telegram Message
+def telegram_sender(filtered_news):
+    # config
+    token = telegram_token["tbot_token"]
+    id = telegram_token["tele_id"]
+
+    for i, post in enumerate(filtered_news, 1):
+        message = f"{i}. {post['title'][:100]}...\n{post['link']}"
+        encoded_message = urllib.parse.quote(message)
+        url = f"https://api.telegram.org/bot{token}/sendMessage?chat_id={id}&text={encoded_message}"
+        
+        try:
+            response = requests.get(url)
+            print("Status Code:", response.status_code)
+            time.sleep(1)
+        except Exception as e:
+            print(f"Erro: {e}")
+    return
+
 if __name__ == "__main__":
     all_news = scraper_serebii()
+
     if all_news:        
         filtered_news = filter(all_news, key_words)
 
@@ -146,5 +179,6 @@ if __name__ == "__main__":
             print(f"  Link: {post['link']}")
         if filtered_news:
             mail_sender(all_news, filtered_news)
+            telegram_sender(filtered_news)
     else:
         print("\nFalha ao obter HTML.")

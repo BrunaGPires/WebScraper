@@ -1,0 +1,12 @@
+# Web Scraping
+requests
+beautifulsoup4
+
+# Environment Variables
+python-dotenv
+
+# Email (já vem com Python)
+# smtplib, email, ssl - são built-in
+
+# Já vem com Python
+# os, urllib, time
