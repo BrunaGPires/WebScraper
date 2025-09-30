@@ -1,5 +1,14 @@
 import requests
+import smtplib, ssl
 from bs4 import BeautifulSoup
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
+email_config = {
+    "sender_mail" : "",
+    "receiver_mail" : "",
+    "password": ""
+}
 
 key_words = [
     "London", "Europe", "EUIC", "UK", "United Kingdom", "England", "Lisbon", "Natural History Museum", "Excel Center", "Excel Centre"
@@ -81,6 +90,49 @@ def filter(all_news, key_words):
 
     return filtered_posts
 
+def mail_sender(all_news, filtered_news):
+
+    #Config
+    sender_mail = email_config['sender_mail']
+    receiver_mail = email_config["receiver_mail"]
+    password = email_config["password"]
+
+    body_text = []
+    for post in filtered_news:
+        body_text.append(f"Title: {post['title']}")
+        body_text.append(f"Link: {post['link']}")
+        body_text.append("")
+
+    # Email content
+    subject = "Pokemon London / Europe Notifier"
+    body = "\n".join(body_text)
+
+    msg = MIMEMultipart()
+    msg["From"] = sender_mail
+    msg["To"] = receiver_mail
+    msg["Subject"] = subject
+    msg.attach(MIMEText(body, "plain"))
+
+    port = 587  
+    context = ssl.create_default_context()
+
+    try:
+        print("Connecting to SMTP server...")
+        with smtplib.SMTP("smtp.gmail.com", port) as server:
+            server.ehlo()
+            server.starttls(context=context)
+            print("Logging in...")
+            server.login(sender_mail, password)
+            print("Sending email...")
+            server.sendmail(sender_mail, receiver_mail, msg.as_string())
+            server.quit()
+        print("Email sent successfully!")
+    except Exception as e:
+        print(f"Erro: {e}")
+        return None
+
+    return
+
 if __name__ == "__main__":
     all_news = scraper_serebii()
     if all_news:        
@@ -92,5 +144,7 @@ if __name__ == "__main__":
         for post in filtered_news:
             print(f"\n→ {post['title']}")
             print(f"  Link: {post['link']}")
+        if filtered_news:
+            mail_sender(all_news, filtered_news)
     else:
         print("\nFalha ao obter HTML.")
